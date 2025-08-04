@@ -13,9 +13,14 @@ export const MODULES: Module[] = [
         id: 'intro-1',
         title: 'Propósito de la Guía',
         content: (
-          <p>
-            Esta plataforma está diseñada para ser tu compañera interactiva en el estudio del lenguaje. Nuestro objetivo es que aprendas de forma dinámica, clara y a tu propio ritmo.
-          </p>
+          <div className="space-y-4">
+            <p>
+              Esta plataforma está diseñada para ser tu compañera interactiva en el estudio del lenguaje. Nuestro objetivo es que aprendas de forma dinámica, clara y a tu propio ritmo.
+            </p>
+            <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg text-indigo-900">
+              <p>Este programa se basa en la guía temática de lenguaje del <strong>Sistema de Ubicación y Nivelación (SUN)</strong> de la Universidad de San Carlos, y su principal propósito es ayudarte a prepararte para el examen de ingreso.</p>
+            </div>
+          </div>
         ),
       },
       {

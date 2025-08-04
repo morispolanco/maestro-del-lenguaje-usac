@@ -5,34 +5,72 @@ import Auth from './components/Auth';
 import { MODULES } from './constants';
 
 const App: React.FC = () => {
-  // Check localStorage for logged-in status on initial load
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return localStorage.getItem('language_maestro_loggedin') === 'true';
   });
+
+  const [userType, setUserType] = useState<'full' | 'demo'>(() => {
+    return (localStorage.getItem('language_maestro_usertype') as 'full' | 'demo') || 'full';
+  });
+  
   const [selectedModuleId, setSelectedModuleId] = useState<string>('intro');
 
   const selectedModule = MODULES.find(m => m.id === selectedModuleId);
 
+  // This effect runs once on app load to check for successful payment redirection.
+  useEffect(() => {
+    const checkPaymentSuccess = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('payment_success') === 'true') {
+        const pendingEmail = sessionStorage.getItem('pending_payment_email');
+        if (pendingEmail) {
+          // Update user status to paid
+          const users = JSON.parse(localStorage.getItem('language_maestro_users') || '[]');
+          const userIndex = users.findIndex((user: any) => user.email === pendingEmail);
+          
+          if (userIndex !== -1) {
+            users[userIndex].paid = true;
+            localStorage.setItem('language_maestro_users', JSON.stringify(users));
+            
+            // Log the user in automatically
+            localStorage.setItem('language_maestro_loggedin', 'true');
+            localStorage.setItem('language_maestro_usertype', 'full');
+            setIsAuthenticated(true);
+            setUserType('full');
+
+            // Clean up session storage and URL
+            sessionStorage.removeItem('pending_payment_email');
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        }
+      }
+    };
+    
+    checkPaymentSuccess();
+  }, []); // Empty dependency array ensures this runs only once on mount.
+
+  const refreshAuthState = () => {
+    const loggedIn = localStorage.getItem('language_maestro_loggedin') === 'true';
+    const type = (localStorage.getItem('language_maestro_usertype') as 'full' | 'demo') || 'full';
+    setIsAuthenticated(loggedIn);
+    setUserType(type);
+  }
+
   const handleLogin = () => {
-    setIsAuthenticated(true);
+    refreshAuthState();
   };
 
   const handleLogout = () => {
     localStorage.removeItem('language_maestro_loggedin');
-    setIsAuthenticated(false);
+    localStorage.removeItem('language_maestro_usertype');
+    refreshAuthState();
   };
   
   // A side effect to sync auth state across tabs
   useEffect(() => {
-    const checkAuth = () => {
-        const loggedIn = localStorage.getItem('language_maestro_loggedin') === 'true';
-        if (loggedIn !== isAuthenticated) {
-            setIsAuthenticated(loggedIn);
-        }
-    };
-    window.addEventListener('storage', checkAuth);
-    return () => window.removeEventListener('storage', checkAuth);
-  }, [isAuthenticated]);
+    window.addEventListener('storage', refreshAuthState);
+    return () => window.removeEventListener('storage', refreshAuthState);
+  }, []);
 
   if (!isAuthenticated) {
     return <Auth onLogin={handleLogin} />;
@@ -44,6 +82,7 @@ const App: React.FC = () => {
         selectedModuleId={selectedModuleId} 
         onSelectModule={setSelectedModuleId}
         onLogout={handleLogout}
+        userType={userType}
       />
       <Dashboard module={selectedModule} />
     </div>

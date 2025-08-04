@@ -7,6 +7,27 @@ interface AuthProps {
   onLogin: () => void;
 }
 
+// InputField moved outside the Auth component to prevent re-renders on state change, fixing the input focus bug.
+const InputField = ({ id, type, value, onChange, placeholder, Icon }: {id: string; type: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; placeholder: string; Icon: React.ElementType}) => (
+    <div className="relative">
+        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+            <Icon className="h-5 w-5 text-gray-400" />
+        </div>
+        <input
+            id={id}
+            name={id}
+            type={type}
+            required
+            value={value}
+            onChange={onChange}
+            className="block w-full rounded-md border-0 py-2.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+            placeholder={placeholder}
+            autoComplete={id}
+        />
+    </div>
+);
+
+
 const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [isLoginView, setIsLoginView] = useState(true);
   const [name, setName] = useState('');
@@ -32,16 +53,19 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
       return;
     }
 
-    // Add new user
-    const newUser = { name, email, password };
+    // Add new user with pending payment status
+    const newUser = { name, email, password, paid: false };
     users.push(newUser);
     localStorage.setItem('language_maestro_users', JSON.stringify(users));
+    
+    // Store pending user email to verify after payment
+    sessionStorage.setItem('pending_payment_email', email);
 
-    // Redirect to payment
-    window.location.href = 'https://buy.stripe.com/28E6oH3DH6UIaBZ6PW3AY0Y';
+    // Redirect to new payment link
+    window.location.href = 'https://buy.stripe.com/3cI7sL4HLbaYfWj7U03AY0Z';
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     
@@ -54,11 +78,22 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     const user = users.find((u: any) => u.email === email && u.password === password);
 
     if (user) {
-      localStorage.setItem('language_maestro_loggedin', 'true');
-      onLogin();
+      if (user.paid) {
+        localStorage.setItem('language_maestro_loggedin', 'true');
+        localStorage.setItem('language_maestro_usertype', 'full');
+        onLogin();
+      } else {
+        setError('El pago para esta cuenta está pendiente. Por favor, completa el registro.');
+      }
     } else {
       setError('Correo electrónico o contraseña incorrectos.');
     }
+  };
+  
+  const handleDemoLogin = () => {
+    localStorage.setItem('language_maestro_loggedin', 'true');
+    localStorage.setItem('language_maestro_usertype', 'demo');
+    onLogin();
   };
 
   const toggleView = () => {
@@ -69,35 +104,18 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     setPassword('');
   };
 
-  const InputField = ({ id, type, value, onChange, placeholder, Icon }: {id: string; type: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; placeholder: string; Icon: React.ElementType}) => (
-    <div className="relative">
-        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-            <Icon className="h-5 w-5 text-gray-400" />
-        </div>
-        <input
-            id={id}
-            name={id}
-            type={type}
-            required
-            value={value}
-            onChange={onChange}
-            className="block w-full rounded-md border-0 py-2.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-            placeholder={placeholder}
-            autoComplete={type === 'password' ? 'current-password' : 'email'}
-        />
-    </div>
-  );
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
             <span className="text-5xl">🎓</span>
             <h1 className="text-4xl font-bold text-slate-800 mt-2">Maestro del Lenguaje</h1>
-            <p className="text-slate-500 mt-2">{isLoginView ? 'Inicia sesión para continuar tu aprendizaje.' : 'Crea una cuenta para empezar tu aventura.'}</p>
+            <p className="text-slate-600 mt-2 max-w-sm mx-auto">
+              Programa basado en la guía de la Universidad de San Carlos para prepararte para tu ingreso.
+            </p>
         </div>
         <Card className="shadow-2xl">
-          <form className="space-y-6" onSubmit={isLoginView ? handleLogin : handleRegister}>
+          <form className="space-y-6" onSubmit={isLoginView ? handleLoginSubmit : handleRegister}>
             <h2 className="text-2xl font-bold text-center text-slate-900">{isLoginView ? 'Iniciar Sesión' : 'Registro'}</h2>
 
             {!isLoginView && (
@@ -128,6 +146,14 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                 </>
             )}
           </form>
+
+            {isLoginView && (
+                <div className="mt-6 text-center">
+                    <Button variant="ghost" onClick={handleDemoLogin}>
+                        Probar cuenta de demostración
+                    </Button>
+                </div>
+            )}
 
           <div className="mt-6">
             <div className="relative">
